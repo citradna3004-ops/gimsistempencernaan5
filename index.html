@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="id">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Pencernaan Quiz</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&amp;family=Fraunces:wght@700;900&amp;display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <style>
+        body { font-family: 'DM Sans', sans-serif; }
+        .heading-font { font-family: 'Fraunces', serif; }
+        .screen { display: none; }
+        .screen.active { display: flex; }
+        
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.6); } 100% { box-shadow: 0 0 0 16px rgba(34,197,94,0); } }
+        @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @keyframes starPop { 0% { transform: scale(0) rotate(-20deg); } 60% { transform: scale(1.3) rotate(5deg); } 100% { transform: scale(1) rotate(0); } }
+        @keyframes confetti { 0% { transform: translateY(0) rotate(0); opacity:1; } 100% { transform: translateY(-120px) rotate(360deg); opacity:0; } }
+        
+        .pop-in { animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+        .shake { animation: shake 0.4s ease; }
+        .pulse-correct { animation: pulse-green 0.6s ease; }
+        .float-anim { animation: float 3s ease-in-out infinite; }
+        .star-pop { animation: starPop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+        
+        .chip { cursor: grab; user-select: none; touch-action: none; transition: transform 0.15s, box-shadow 0.15s; }
+        .chip:active { cursor: grabbing; transform: scale(1.1); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+        .chip.placed { opacity: 0.4; pointer-events: none; }
+        
+        .drop-zone { transition: all 0.2s; }
+        .drop-zone.highlight { filter: brightness(1.3); transform: scale(1.1); }
+        .drop-zone.filled { opacity: 0.6; }
+        
+        .quiz-option { transition: all 0.2s; cursor: pointer; }
+        .quiz-option:hover:not(.disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .quiz-option.correct { background: #22c55e !important; color: white !important; border-color: #16a34a !important; }
+        .quiz-option.wrong { background: #ef4444 !important; color: white !important; border-color: #dc2626 !important; }
+        .quiz-option.disabled { pointer-events: none; opacity: 0.7; }
+        
+        .progress-fill { transition: width 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+        
+        .mute-btn { position: fixed; top: 12px; right: 12px; z-index: 50; background: rgba(255,255,255,0.9); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid #e5e7eb; }
+    </style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+  <script src="/_sdk/resizing_sdk.js" type="text/javascript"></script>
+ </head>
+ <body data-template-id="__page-root" class="min-h-screen overflow-x-hidden"><button class="mute-btn" id="mute-btn" aria-label="Toggle sound"><i data-lucide="volume-2" id="mute-icon" style="width:20px;height:20px;"></i></button> <!-- WELCOME -->
+  <section data-template-id="welcome-section" id="screen-welcome" class="canva-section screen active flex-col items-center justify-center min-h-screen px-4 py-8 text-center relative overflow-hidden">
+   <div class="absolute inset-0 opacity-20 pointer-events-none"><img data-template-id="hero-bg" class="canva-image w-full h-full object-cover" loading="lazy">
+   </div>
+   <div class="relative z-10 max-w-lg mx-auto">
+    <h1 data-template-id="game-title" class="canva-text heading-font pop-in"></h1>
+    <p data-template-id="game-subtitle" class="canva-text mt-4 text-lg pop-in" style="animation-delay:0.15s"></p><button data-template-id="start-btn" class="canva-button mt-8 px-10 py-4 rounded-2xl text-xl font-bold shadow-lg hover:shadow-xl transition-all hover:scale-105 pop-in" style="animation-delay:0.3s" onclick="showScreen('activity')"></button>
+   </div>
+  </section><!-- DRAG & DROP ACTIVITY -->
+  <section data-template-id="activity-section" id="screen-activity" class="canva-section screen flex-col items-center min-h-screen px-4 py-6">
+   <h2 data-template-id="activity-title" class="canva-text heading-font text-center"></h2>
+   <p data-template-id="activity-instructions" class="canva-text text-center mt-1 mb-4"></p>
+   <div id="activity-score" class="text-sm font-bold mb-2 text-center" style="color:#6d28d9;">
+    0 / 6 organ terpasang
+   </div>
+   <div class="flex flex-col lg:flex-row items-center gap-6 w-full max-w-3xl mx-auto flex-1"><!-- Body SVG -->
+    <div class="relative flex-shrink-0" style="width:220px;height:400px;" id="body-container">
+     <svg viewbox="0 0 220 400" width="220" height="400" xmlns="http://www.w3.org/2000/svg"><!-- Body silhouette --> <path d="M110 20 C90 20 75 35 75 55 C75 75 90 90 110 90 C130 90 145 75 145 55 C145 35 130 20 110 20Z" fill="#fcd34d" stroke="#f59e0b" stroke-width="2" /> <path d="M75 90 L60 100 L50 150 L65 155 L75 130 L75 180 L55 280 L55 380 L80 380 L90 280 L110 240 L130 280 L140 380 L165 380 L165 280 L145 180 L145 130 L155 155 L170 150 L160 100 L145 90Z" fill="#fcd34d" stroke="#f59e0b" stroke-width="2" /> <!-- Drop zones --> <g id="drop-mulut" class="drop-zone" data-organ="mulut">
+       <ellipse cx="110" cy="72" rx="18" ry="10" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="2" stroke-dasharray="4" />
+       <text x="110" y="76" text-anchor="middle" font-size="8" fill="#ef4444">
+        ?
+       </text>
+      </g> <g id="drop-kerongkongan" class="drop-zone" data-organ="kerongkongan">
+       <rect x="100" y="90" width="20" height="30" rx="8" fill="rgba(249,115,22,0.3)" stroke="#f97316" stroke-width="2" stroke-dasharray="4" />
+       <text x="110" y="108" text-anchor="middle" font-size="8" fill="#f97316">
+        ?
+       </text>
+      </g> <g id="drop-lambung" class="drop-zone" data-organ="lambung">
+       <ellipse cx="118" cy="140" rx="22" ry="16" fill="rgba(234,179,8,0.3)" stroke="#eab308" stroke-width="2" stroke-dasharray="4" />
+       <text x="118" y="144" text-anchor="middle" font-size="8" fill="#eab308">
+        ?
+       </text>
+      </g> <g id="drop-usushalus" class="drop-zone" data-organ="usushalus">
+       <ellipse cx="110" cy="185" rx="28" ry="22" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="2" stroke-dasharray="4" />
+       <text x="110" y="189" text-anchor="middle" font-size="8" fill="#22c55e">
+        ?
+       </text>
+      </g> <g id="drop-ususbesar" class="drop-zone" data-organ="ususbesar">
+       <path d="M80 165 Q72 165 72 185 Q72 215 110 215 Q148 215 148 185 Q148 165 140 165" fill="rgba(59,130,246,0.3)" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4" />
+       <text x="110" y="200" text-anchor="middle" font-size="8" fill="#3b82f6">
+        ?
+       </text>
+      </g> <g id="drop-anus" class="drop-zone" data-organ="anus">
+       <ellipse cx="110" cy="235" rx="12" ry="8" fill="rgba(168,85,247,0.3)" stroke="#a855f7" stroke-width="2" stroke-dasharray="4" />
+       <text x="110" y="239" text-anchor="middle" font-size="8" fill="#a855f7">
+        ?
+       </text>
+      </g>
+     </svg>
+    </div><!-- Label chips -->
+    <div id="chip-container" class="flex flex-wrap gap-3 justify-center lg:flex-col lg:gap-2">
+     <div class="chip rounded-xl px-5 py-3 font-bold text-white shadow-md" data-organ="mulut" style="background:#ef4444;">
+      🦷 Mulut
+     </div>
+     <div class="chip rounded-xl px-5 py-3 font-bold text-white shadow-md" data-organ="kerongkongan" style="background:#f97316;">
+      🔽 Kerongkongan
+     </div>
+     <div class="chip rounded-xl px-5 py-3 font-bold text-white shadow-md" data-organ="lambung" style="background:#eab308;">
+      🫙 Lambung
+     </div>
+     <div class="chip rounded-xl px-5 py-3 font-bold text-white shadow-md" data-organ="usushalus" style="background:#22c55e;">
+      🌀 Usus Halus
+     </div>
+     <div class="chip rounded-xl px-5 py-3 font-bold text-white shadow-md" data-organ="ususbesar" style="background:#3b82f6;">
+      💪 Usus Besar
+     </div>
+     <div class="chip rounded-xl px-5 py-3 font-bold text-white shadow-md" data-organ="anus" style="background:#a855f7;">
+      🚪 Anus
+     </div>
+    </div>
+   </div><button id="next-quiz-btn" class="mt-6 px-8 py-3 rounded-2xl font-bold text-white text-lg shadow-lg hover:scale-105 transition-all hidden" style="background:#6d28d9;" onclick="showScreen('quiz')">Lanjut ke Kuis! →</button>
+  </section><!-- QUIZ -->
+  <section data-template-id="quiz-section" id="screen-quiz" class="canva-section screen flex-col items-center min-h-screen px-4 py-6">
+   <h2 data-template-id="quiz-title" class="canva-text heading-font text-center"></h2>
+   <p data-template-id="quiz-progress-label" class="canva-text mt-1 text-center" id="quiz-progress-text"></p>
+   <div class="w-full max-w-md mx-auto mt-3 h-3 rounded-full overflow-hidden" style="background:#e5e7eb;">
+    <div id="quiz-progress-bar" class="progress-fill h-full rounded-full" style="width:0%;background:linear-gradient(90deg,#6d28d9,#ec4899);"></div>
+   </div>
+   <div id="quiz-container" class="w-full max-w-lg mx-auto mt-6 flex-1"></div>
+   <div id="quiz-explanation" class="w-full max-w-lg mx-auto mt-4 p-4 rounded-xl text-sm hidden" style="background:rgba(255,255,255,0.9);"></div>
+  </section><!-- RESULTS -->
+  <section data-template-id="results-section" id="screen-results" class="canva-section screen flex-col items-center justify-center min-h-screen px-4 py-8 text-center">
+   <h2 data-template-id="results-title" class="canva-text heading-font"></h2>
+   <div id="stars-container" class="flex gap-4 mt-6 text-6xl"></div>
+   <div id="score-display" class="mt-4 text-4xl font-bold heading-font" style="color:#6d28d9;"></div>
+   <p data-template-id="results-message" id="results-msg" class="canva-text mt-4 text-lg max-w-sm"></p><button data-template-id="play-again-btn" class="canva-button mt-8 px-10 py-4 rounded-2xl text-xl font-bold shadow-lg hover:scale-105 transition-all" onclick="resetGame()"></button>
+  </section>
+  <script src="/_sdk/editing_sdk.js"></script>
+  <script>
+// Audio
+let muted = false;
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(type) {
+    if (muted) return;
+    try { audioCtx.resume(); } catch(e) {}
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    g.gain.value = 0.15;
+    if (type === 'correct') { o.frequency.value = 523; o.type = 'sine'; o.start(); o.frequency.linearRampToValueAtTime(784, audioCtx.currentTime + 0.15); g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3); o.stop(audioCtx.currentTime + 0.3); }
+    else if (type === 'wrong') { o.frequency.value = 200; o.type = 'sawtooth'; g.gain.value = 0.08; o.start(); g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.25); o.stop(audioCtx.currentTime + 0.25); }
+    else if (type === 'fanfare') {
+        [523,659,784,1047].forEach((f,i) => {
+            const osc = audioCtx.createOscillator(); const gn = audioCtx.createGain();
+            osc.connect(gn); gn.connect(audioCtx.destination);
+            osc.frequency.value = f; osc.type = 'sine'; gn.gain.value = 0.12;
+            osc.start(audioCtx.currentTime + i * 0.15);
+            gn.gain.linearRampToValueAtTime(0, audioCtx.currentTime + i * 0.15 + 0.4);
+            osc.stop(audioCtx.currentTime + i * 0.15 + 0.4);
+        });
+    }
+}
+
+document.getElementById('mute-btn').addEventListener('click', () => {
+    muted = !muted;
+    document.getElementById('mute-icon').setAttribute('data-lucide', muted ? 'volume-x' : 'volume-2');
+    lucide.createIcons();
+});
+
+// Screen navigation
+function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + name).classList.add('active');
+    if (name === 'quiz') startQuiz();
+    if (name === 'results') showResults();
+}
+
+// DRAG & DROP
+let placedCount = 0;
+const placedOrgans = new Set();
+
+function initDragDrop() {
+    placedCount = 0;
+    placedOrgans.clear();
+    document.getElementById('activity-score').textContent = '0 / 6 organ terpasang';
+    document.getElementById('next-quiz-btn').classList.add('hidden');
+    
+    document.querySelectorAll('.chip').forEach(c => { c.classList.remove('placed'); c.style.display = ''; });
+    document.querySelectorAll('.drop-zone').forEach(z => { z.classList.remove('filled'); z.querySelector('text').textContent = '?'; });
+    
+    const chips = document.querySelectorAll('.chip');
+    chips.forEach(chip => {
+        let startX, startY, origLeft, origTop, isDragging = false;
+        
+        const onStart = (e) => {
+            e.preventDefault();
+            try { audioCtx.resume(); } catch(er) {}
+            isDragging = true;
+            const touch = e.touches ? e.touches[0] : e;
+            const rect = chip.getBoundingClientRect();
+            startX = touch.clientX - rect.left;
+            startY = touch.clientY - rect.top;
+            origLeft = rect.left;
+            origTop = rect.top;
+            chip.style.position = 'fixed';
+            chip.style.left = rect.left + 'px';
+            chip.style.top = rect.top + 'px';
+            chip.style.zIndex = '100';
+            chip.style.width = rect.width + 'px';
+        };
+        
+        const onMove = (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            const touch = e.touches ? e.touches[0] : e;
+            chip.style.left = (touch.clientX - startX) + 'px';
+            chip.style.top = (touch.clientY - startY) + 'px';
+            
+            document.querySelectorAll('.drop-zone').forEach(z => {
+                const svg = document.querySelector('#body-container svg');
+                const svgRect = svg.getBoundingClientRect();
+                const bbox = z.getBBox();
+                const zoneRect = {
+                    left: svgRect.left + (bbox.x / 220) * svgRect.width,
+                    top: svgRect.top + (bbox.y / 400) * svgRect.height,
+                    width: (bbox.width / 220) * svgRect.width,
+                    height: (bbox.height / 400) * svgRect.height
+                };
+                const chipRect = chip.getBoundingClientRect();
+                const overlap = !(chipRect.right < zoneRect.left || chipRect.left > zoneRect.left + zoneRect.width || chipRect.bottom < zoneRect.top || chipRect.top > zoneRect.top + zoneRect.height);
+                z.classList.toggle('highlight', overlap && !z.classList.contains('filled'));
+            });
+        };
+        
+        const onEnd = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('highlight'));
+            
+            const chipRect = chip.getBoundingClientRect();
+            const organName = chip.dataset.organ;
+            let matched = false;
+            
+            document.querySelectorAll('.drop-zone').forEach(z => {
+                if (z.classList.contains('filled')) return;
+                const svg = document.querySelector('#body-container svg');
+                const svgRect = svg.getBoundingClientRect();
+                const bbox = z.getBBox();
+                const zoneRect = {
+                    left: svgRect.left + (bbox.x / 220) * svgRect.width,
+                    top: svgRect.top + (bbox.y / 400) * svgRect.height,
+                    width: (bbox.width / 220) * svgRect.width,
+                    height: (bbox.height / 400) * svgRect.height
+                };
+                const overlap = !(chipRect.right < zoneRect.left || chipRect.left > zoneRect.left + zoneRect.width || chipRect.bottom < zoneRect.top || chipRect.top > zoneRect.top + zoneRect.height);
+                
+                if (overlap && z.dataset.organ === organName) {
+                    matched = true;
+                    z.classList.add('filled');
+                    z.querySelector('text').textContent = '✓';
+                    chip.classList.add('placed');
+                    chip.style.position = ''; chip.style.zIndex = ''; chip.style.width = '';
+                    placedOrgans.add(organName);
+                    placedCount = placedOrgans.size;
+                    document.getElementById('activity-score').textContent = placedCount + ' / 6 organ terpasang';
+                    playSound('correct');
+                    z.classList.add('pulse-correct');
+                    setTimeout(() => z.classList.remove('pulse-correct'), 600);
+                    if (placedCount >= 6) {
+                        document.getElementById('next-quiz-btn').classList.remove('hidden');
+                        playSound('fanfare');
+                    }
+                } else if (overlap && z.dataset.organ !== organName) {
+                    playSound('wrong');
+                    chip.classList.add('shake');
+                    setTimeout(() => chip.classList.remove('shake'), 400);
+                }
+            });
+            
+            if (!matched) {
+                chip.style.position = ''; chip.style.left = ''; chip.style.top = ''; chip.style.zIndex = ''; chip.style.width = '';
+            }
+        };
+        
+        chip.addEventListener('mousedown', onStart);
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onEnd);
+        chip.addEventListener('touchstart', onStart, { passive: false });
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onEnd);
+    });
+}
+
+// QUIZ
+const questions = [
+    { q: "Organ pencernaan yang pertama kali mencerna makanan adalah...", o: ["Mulut", "Lambung", "Usus halus", "Kerongkongan"], a: 0, e: "Mulut adalah organ pertama yang mencerna makanan secara mekanis (gigi) dan kimiawi (air liur)." },
+    { q: "Apa fungsi kerongkongan?", o: ["Menyerap nutrisi", "Menyalurkan makanan ke lambung", "Mencerna lemak", "Menyimpan makanan"], a: 1, e: "Kerongkongan menyalurkan makanan dari mulut ke lambung melalui gerakan peristaltik." },
+    { q: "Di organ mana makanan dicerna oleh asam lambung?", o: ["Usus halus", "Usus besar", "Lambung", "Mulut"], a: 2, e: "Lambung menghasilkan asam klorida (HCl) untuk mencerna makanan, terutama protein." },
+    { q: "Usus halus berfungsi utama untuk...", o: ["Menyimpan makanan", "Menyerap sari-sari makanan", "Menghancurkan makanan", "Membuang sisa makanan"], a: 1, e: "Usus halus adalah tempat utama penyerapan nutrisi dari makanan ke dalam darah." },
+    { q: "Apa yang diserap oleh usus besar?", o: ["Protein", "Lemak", "Air dan garam mineral", "Vitamin A"], a: 2, e: "Usus besar menyerap air dan garam mineral dari sisa makanan sebelum dibuang." },
+    { q: "Urutan sistem pencernaan yang benar adalah...", o: ["Mulut → Lambung → Kerongkongan → Usus", "Mulut → Kerongkongan → Lambung → Usus halus → Usus besar", "Lambung → Mulut → Usus → Kerongkongan", "Mulut → Usus halus → Lambung → Usus besar"], a: 1, e: "Urutan yang benar: Mulut → Kerongkongan → Lambung → Usus Halus → Usus Besar → Anus." },
+    { q: "Enzim ptialin terdapat di...", o: ["Lambung", "Usus halus", "Air liur (mulut)", "Usus besar"], a: 2, e: "Enzim ptialin ada di air liur dan berfungsi mengubah zat tepung menjadi gula." },
+    { q: "Gerakan meremas makanan di kerongkongan disebut...", o: ["Peristaltik", "Mekanik", "Kimiawi", "Absorpsi"], a: 0, e: "Gerak peristaltik adalah gerakan meremas-remas yang mendorong makanan sepanjang saluran pencernaan." },
+    { q: "Sisa pencernaan dikeluarkan melalui...", o: ["Mulut", "Lambung", "Usus halus", "Anus"], a: 3, e: "Anus adalah lubang akhir saluran pencernaan tempat sisa makanan (feses) dikeluarkan." },
+    { q: "Gigi yang berfungsi untuk merobek makanan adalah...", o: ["Gigi seri", "Gigi taring", "Gigi geraham", "Gigi susu"], a: 1, e: "Gigi taring berbentuk runcing dan berfungsi untuk merobek makanan." }
+];
+
+let currentQ = 0, quizScore = 0, shuffledQs = [];
+
+function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+function startQuiz() {
+    currentQ = 0; quizScore = 0;
+    shuffledQs = shuffle(questions);
+    renderQuestion();
+}
+
+function renderQuestion() {
+    const q = shuffledQs[currentQ];
+    const container = document.getElementById('quiz-container');
+    document.getElementById('quiz-explanation').classList.add('hidden');
+    document.getElementById('quiz-progress-text').textContent = `Soal ${currentQ + 1} dari 10`;
+    document.getElementById('quiz-progress-bar').style.width = ((currentQ + 1) / 10 * 100) + '%';
+    
+    const indices = shuffle([0, 1, 2, 3]);
+    container.innerHTML = `
+        <div class="p-6 rounded-2xl shadow-lg" style="background:rgba(255,255,255,0.95);">
+            <p class="text-lg font-bold mb-5" style="color:#1e1b4b;">${q.q}</p>
+            <div class="grid gap-3">
+                ${indices.map(i => `<button class="quiz-option p-4 rounded-xl text-left font-medium border-2" style="background:#f5f3ff;border-color:#c4b5fd;color:#4c1d95;" onclick="selectAnswer(${i}, this)">${q.o[i]}</button>`).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function selectAnswer(idx, btn) {
+    const q = shuffledQs[currentQ];
+    const btns = document.querySelectorAll('.quiz-option');
+    btns.forEach(b => b.classList.add('disabled'));
+    
+    if (idx === q.a) {
+        btn.classList.add('correct');
+        quizScore += 10;
+        playSound('correct');
+    } else {
+        btn.classList.add('wrong');
+        btns.forEach(b => { if (parseInt(b.getAttribute('onclick').match(/\d+/)[0]) === q.a) b.classList.add('correct'); });
+        playSound('wrong');
+    }
+    
+    const exp = document.getElementById('quiz-explanation');
+    exp.innerHTML = `<strong>💡 Penjelasan:</strong> ${q.e}`;
+    exp.classList.remove('hidden');
+    
+    setTimeout(() => {
+        currentQ++;
+        if (currentQ < 10) renderQuestion();
+        else showScreen('results');
+    }, 2200);
+}
+
+function showResults() {
+    const stars = quizScore >= 80 ? 3 : quizScore >= 50 ? 2 : 1;
+    const container = document.getElementById('stars-container');
+    container.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+        const s = document.createElement('span');
+        s.textContent = i < stars ? '⭐' : '☆';
+        s.className = 'star-pop';
+        s.style.animationDelay = (i * 0.2) + 's';
+        s.style.opacity = i < stars ? '1' : '0.3';
+        container.appendChild(s);
+    }
+    document.getElementById('score-display').textContent = quizScore + ' / 100';
+    
+    const msg = document.getElementById('results-msg');
+    if (quizScore >= 80) msg.textContent = '🎉 Luar biasa! Kamu sangat paham sistem pencernaan!';
+    else if (quizScore >= 50) msg.textContent = '👍 Bagus! Terus belajar ya!';
+    else msg.textContent = '💪 Jangan menyerah! Coba lagi ya!';
+    
+    if (stars === 3) playSound('fanfare');
+}
+
+function resetGame() {
+    showScreen('welcome');
+    initDragDrop();
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+    initDragDrop();
+});
+</script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9f67e7f71148960c',t:'MTc3NzkwMTkxMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
